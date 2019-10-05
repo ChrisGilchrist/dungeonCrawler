@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <set>
+#include <utility> 
 
 using namespace std;
 
@@ -10,7 +12,7 @@ using namespace std;
 /*
 		###############################
 		#.............................#
-	y	#.G...........................#
+	x	#.G...........................#
 		#.............................#
 	a	#.............########........#
 	x	#.............#..E.#M.........#
@@ -19,7 +21,7 @@ using namespace std;
 		#................G#G..........#
 		###############################
 
-		<----------- x axis ----------->
+		<----------- y axis ----------->
 */
 vector<vector<char>> map;
 
@@ -55,7 +57,8 @@ enum GameState
 	HitMonster,
 	FoundExit,
 	QuitGame,
-	StillLooking
+	StillLooking,
+	FoundGold
 };
 
 void createMap() {
@@ -94,6 +97,9 @@ void createMap() {
 
 // Reprint the map each time the user makes a move
 void printMap() {
+
+	system("CLS");
+
 	for (int y = 0; y < map.size(); ++y) {
 
 		for (int x = 0; x < map[0].size(); ++x) {
@@ -136,7 +142,7 @@ void moveMonster(
 	// Clear current position
 	map[currentPosX][currentPosY] = EmptySymbol;
 
-	// Place the player symbol
+	// Place the monster symbol
 	map[desiredPosX][desiredPosY] = MonsterSymbol;
 
 	currentPosX = desiredPosX;
@@ -158,27 +164,16 @@ GameState movePlayer(
 	GameState newGameState;
 
 	if (map[desiredPosX][desiredPosY] == MonsterSymbol) {
-		cout << "GAME OVER - A monster got you first!" << '\n';
-		cout << "Gold Count: " << goldCount << '\n';
 		newGameState = HitMonster;
 	}
 	else if (map[desiredPosX][desiredPosY] == ExitSymbol) {
-		endTime = chrono::system_clock::now();
-		cout << "CONGRATULATIONS - You successfully made it to the exit unharmed!" << '\n';
-
-		// Show stats
-		chrono::duration<double> elapsed_seconds = endTime - startTime;
-		cout << "Gold Count: " << goldCount << '\n';
-		cout << "Elapsed Time: " << elapsed_seconds.count() << '\n';
-		
 		newGameState = FoundExit;
 	}
 	else if (map[desiredPosX][desiredPosY] == GoldSymbol) {
-		goldCount = goldCount + 1;
-		cout << "GOLD FOUND - You have found some treasure on your journey!" << " Gold Count: " << goldCount << '\n';
-		newGameState = StillLooking;
+		newGameState = FoundGold;
 	}
 	else if (map[desiredPosX][desiredPosY] == WallSymbol) {
+		// Dont move the character as it is out of bounds
 		desiredPosX = currentPosX;
 		desiredPosY = currentPosY;
 		newGameState = StillLooking;
@@ -239,56 +234,76 @@ int main() {
 	}
 
 	// While we are still looking, listen for key presses from user
-	while (gameState == StillLooking) {
+	while (gameState == StillLooking || gameState == FoundGold) {
+
+		if (gameState == FoundGold) {
+			goldCount = goldCount + 1;
+			cout << "GOLD FOUND - You have found some treasure on your journey!" << " Gold Count: " << goldCount << '\n';
+		}
 
 		char key;
 		cin >> key;
 
 		if (key == Right) {
 			gameState = movePlayer(playerPosX, playerPosY, playerPosX, playerPosY + 1);
-			// cout << "Moved character to the right by 1" << '\n';
 		}
 		else if (key == Left) {
 			gameState = movePlayer(playerPosX, playerPosY, playerPosX, playerPosY - 1);
-			// cout << "Moved character to the left by 1" << '\n';
 		}
 		else if (key == Up) {
 			gameState = movePlayer(playerPosX, playerPosY, playerPosX - 1, playerPosY);
-			// cout << "Moved character up by 1" << '\n';
 		}
 		else if (key == Down) {
-			gameState = movePlayer(playerPosX, playerPosY, playerPosX + 1, playerPosY);
-			// cout << "Moved character down by 1" << '\n';
+			gameState = movePlayer(playerPosX, playerPosY, playerPosX + 1, playerPosY);	
 		}
 		else if (key == Quit) {
 			gameState = QuitGame;
-			cout << "Player has quit the game" << '\n';
-			exit(0);
 		}
 		else
 		{
 			cout << "Invalid control, please try again" << '\n';
 		}
-		
-		// Generate a random direcition for the monster to move in
-		int randomNo = rand() % 4 + 1;
-		switch (randomNo) {
-		case 1:
-			moveMonster(monsterPosX, monsterPosY, monsterPosX, monsterPosY + 1);
-			break;
-		case 2:
-			moveMonster(monsterPosX, monsterPosY, monsterPosX, monsterPosY - 1);
-			break;
-		case 3:
-			moveMonster(monsterPosX, monsterPosY, monsterPosX - 1, monsterPosY);
-			break;
-		case 4:
-			moveMonster(monsterPosX, monsterPosY, monsterPosX + 1, monsterPosY);
-			break;
-		}
+
+
+			// Generate a random direcition for the monster to move in
+			// Also update the monsters location in array
+			int randomNo = rand() % 4 + 1;
+			switch (randomNo) {
+			case 1:
+				moveMonster(monsterPosX, monsterPosY, monsterPosX, monsterPosY + 1);
+				break;
+			case 2:
+				moveMonster(monsterPosX, monsterPosY, monsterPosX, monsterPosY - 1);
+				break;
+			case 3:
+				moveMonster(monsterPosX, monsterPosY, monsterPosX - 1, monsterPosY);
+				break;
+			case 4:
+				moveMonster(monsterPosX, monsterPosY, monsterPosX + 1, monsterPosY);
+				break;
+			}
+
 
 		printMap();
+	}
 
+	// Player found the exit
+	if (gameState == FoundExit) {
+		endTime = chrono::system_clock::now();
+		cout << "CONGRATULATIONS - You successfully made it to the exit unharmed!" << '\n';
+
+		// Show stats
+		chrono::duration<double> elapsed_seconds = endTime - startTime;
+		cout << "Gold Count: " << goldCount << '\n';
+		cout << "Elapsed Time: " << elapsed_seconds.count() << '\n';
+	}
+	else if (gameState == HitMonster) {
+		cout << "GAME OVER - A monster got you first!" << '\n';
+		cout << "Gold Count: " << goldCount << '\n';
+	}
+	else if (gameState == QuitGame) {
+		cout << "Player has quit the game" << '\n';
+		exit(0);
 	}
 
 	return 0;
